@@ -17,6 +17,10 @@ dependencies:
   flutter_riverpod: ^2.6.1
   confetti: ^0.8.0
   google_mobile_ads: ^5.3.0
+  # GMA 5.x transitively requires webview_flutter_wkwebview on iOS;
+  # declaring the umbrella plugin makes Flutter generate the missing
+  # podspec so CocoaPods can resolve it.
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
   flutter_test:

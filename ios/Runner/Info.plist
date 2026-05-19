@@ -66,5 +66,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Google Mobile Ads requires this key on init. Without it, GMA
+	     raises an NSException at app launch and terminates the process.
+	     The value below is Google's official iOS TEST app ID — replace
+	     with your production AdMob app ID before App Store release. -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<!-- ATT prompt copy; required only if you call
+	     ATTrackingManager.requestTrackingAuthorization. GMA 5.x does not
+	     auto-trigger ATT but App Review may ask why this is missing. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized ads to you.</string>
 </dict>
 </plist>

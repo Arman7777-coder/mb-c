@@ -1,0 +1,27 @@
+name: survey_rewards
+description: "Survey Rewards - Share your opinion, earn rewards"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.2.0
+  shared_preferences: ^2.3.0
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  flutter_riverpod: ^2.6.1
+  confetti: ^0.8.0
+  google_mobile_ads: ^5.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -16,13 +16,38 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
   bool _privacyAccepted = false;
   bool _dataConsent = false;
   bool _loading = false;
+  String? _error;
 
   bool get _allChecked => _ageConfirmed && _tosAccepted && _privacyAccepted && _dataConsent;
 
   Future<void> _proceed() async {
-    setState(() => _loading = true);
-    await ref.read(userProvider.notifier).updateConsent(true, true);
-    if (mounted) Navigator.pushReplacementNamed(context, '/home');
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(userProvider.notifier).updateConsent(true, true);
+      if (!mounted) return;
+      // Read the post-call state. The notifier writes errors there;
+      // navigating to /home on a failed consent call would leave the
+      // user on a Home screen with no session — better to surface the
+      // error and let them retry.
+      final result = ref.read(userProvider);
+      result.when(
+        data: (_) => Navigator.pushReplacementNamed(context, '/home'),
+        loading: () {},
+        error: (e, _) => setState(() {
+          _loading = false;
+          _error = 'Couldn\'t reach the server. Check your connection and try again.';
+        }),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Couldn\'t reach the server. Check your connection and try again.';
+      });
+    }
   }
 
   @override
@@ -89,6 +114,23 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   ],
                 ),
               ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, size: 18, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_error!, style: const TextStyle(fontSize: 12, color: Colors.red))),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
@@ -12,9 +13,15 @@ import 'screens/wallet_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'services/ad_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Fire-and-forget AdMob init. The first ad-request screen handles a
+  // not-yet-ready service via the existing isRewardedAdReady / isInterstitialReady
+  // checks, so we don't block UI on this. ATT prompt is shown inside
+  // initialize() before MobileAds.initialize() — required by Apple.
+  unawaited(AdService().initialize());
   runApp(const ProviderScope(child: SurveyRewardsApp()));
 }
 

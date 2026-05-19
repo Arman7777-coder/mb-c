@@ -1,5 +1,75 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+// AdMob configuration.
+//
+// All ad-unit IDs and the iOS/Android App IDs default to Google's official
+// TEST values so dev builds never hit the real publisher account (which
+// would risk invalid-traffic flags). Production builds pass real IDs via:
+//
+//   flutter build ios --release \
+//     --dart-define=ADMOB_REWARDED_IOS=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_INTERSTITIAL_IOS=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_BANNER_IOS=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_REWARDED_ANDROID=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_INTERSTITIAL_ANDROID=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_BANNER_ANDROID=ca-app-pub-XXXX/YYYY \
+//     --dart-define=ADMOB_TEST_DEVICE_IDS=ABCD1234,EFGH5678
+//
+// The App IDs in ios/Runner/Info.plist (GADApplicationIdentifier) and
+// android/app/src/main/AndroidManifest.xml (com.google.android.gms.ads.
+// APPLICATION_ID) must be swapped at release time as well — those are
+// read by the GMA SDK at process start, before any Dart code runs.
+
+class _AdMobIds {
+  // iOS
+  static const rewardedIos = String.fromEnvironment(
+    'ADMOB_REWARDED_IOS',
+    defaultValue: 'ca-app-pub-3940256099942544/1712485313',
+  );
+  static const interstitialIos = String.fromEnvironment(
+    'ADMOB_INTERSTITIAL_IOS',
+    defaultValue: 'ca-app-pub-3940256099942544/4411468910',
+  );
+  static const bannerIos = String.fromEnvironment(
+    'ADMOB_BANNER_IOS',
+    defaultValue: 'ca-app-pub-3940256099942544/2934735716',
+  );
+
+  // Android
+  static const rewardedAndroid = String.fromEnvironment(
+    'ADMOB_REWARDED_ANDROID',
+    defaultValue: 'ca-app-pub-3940256099942544/5224354917',
+  );
+  static const interstitialAndroid = String.fromEnvironment(
+    'ADMOB_INTERSTITIAL_ANDROID',
+    defaultValue: 'ca-app-pub-3940256099942544/1033173712',
+  );
+  static const bannerAndroid = String.fromEnvironment(
+    'ADMOB_BANNER_ANDROID',
+    defaultValue: 'ca-app-pub-3940256099942544/6300978111',
+  );
+
+  // Comma-separated list of test device IDs. Required when running a
+  // build with PRODUCTION ad-unit IDs against a real device — without
+  // it the impressions count as invalid traffic and Google may suspend
+  // the AdMob account. Find the device ID in the first ad-request log
+  // line: "Use RequestConfiguration.Builder.setTestDeviceIds(...) to
+  // get test ads on this device."
+  static const testDeviceIdsCsv = String.fromEnvironment(
+    'ADMOB_TEST_DEVICE_IDS',
+    defaultValue: '',
+  );
+
+  static List<String> get testDeviceIds => testDeviceIdsCsv
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+}
 
 class AdService {
   static final AdService _instance = AdService._();
@@ -10,33 +80,97 @@ class AdService {
   InterstitialAd? _interstitialAd;
   bool _isRewardedAdReady = false;
   bool _isInterstitialReady = false;
+  bool _initialized = false;
+  Completer<void>? _initializing;
 
-  // Google's official test ad unit IDs
-  // Replace these with your real ad unit IDs for production
-  String get _rewardedAdUnitId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/5224354917'
-      : 'ca-app-pub-3940256099942544/1712485313';
+  // Exponential backoff with a ceiling so a wedged ad network can't
+  // pin us to a tight 30 s retry loop forever (battery + log spam).
+  int _rewardedFailCount = 0;
+  int _interstitialFailCount = 0;
+  static const _maxBackoff = Duration(minutes: 5);
+
+  String get _rewardedAdUnitId =>
+      Platform.isAndroid ? _AdMobIds.rewardedAndroid : _AdMobIds.rewardedIos;
 
   String get _interstitialAdUnitId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/1033173712'
-      : 'ca-app-pub-3940256099942544/4411468910';
+      ? _AdMobIds.interstitialAndroid
+      : _AdMobIds.interstitialIos;
 
-  String get _bannerAdUnitId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/6300978111'
-      : 'ca-app-pub-3940256099942544/2934735716';
+  String get _bannerAdUnitId =>
+      Platform.isAndroid ? _AdMobIds.bannerAndroid : _AdMobIds.bannerIos;
 
   bool get isRewardedAdReady => _isRewardedAdReady;
   bool get isInterstitialReady => _isInterstitialReady;
 
+  // Idempotent — safe to call from main() and again from any screen
+  // that wants to be defensive. Concurrent callers all await the same
+  // in-flight initialization.
   Future<void> initialize() async {
-    await MobileAds.instance.initialize();
-    loadRewardedAd();
-    loadInterstitialAd();
+    if (_initialized) return;
+    if (_initializing != null) return _initializing!.future;
+    final completer = Completer<void>();
+    _initializing = completer;
+
+    try {
+      // 1. ATT prompt — must run BEFORE MobileAds.initialize() on iOS
+      // so the SDK picks up the chosen tracking status. No-op on Android.
+      if (Platform.isIOS) {
+        await _requestTrackingAuthorization();
+      }
+
+      // 2. Register test devices so prod-ID builds tested on dev hardware
+      // don't flag the AdMob account.
+      if (_AdMobIds.testDeviceIds.isNotEmpty) {
+        await MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(testDeviceIds: _AdMobIds.testDeviceIds),
+        );
+      }
+
+      // 3. Initialize the SDK.
+      await MobileAds.instance.initialize();
+      _initialized = true;
+
+      // 4. Preload first ads. Fire-and-forget — UI shouldn't block on these.
+      loadRewardedAd();
+      loadInterstitialAd();
+
+      completer.complete();
+    } catch (e, st) {
+      debugPrint('[AdService] initialize failed: $e\n$st');
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      _initializing = null;
+    }
+  }
+
+  Future<void> _requestTrackingAuthorization() async {
+    try {
+      final status =
+          await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined) {
+        // Apple recommends a small delay so the prompt doesn't collide
+        // with the splash transition; without it the system sometimes
+        // silently denies (FB-tracked behavior on iOS 17).
+        await Future.delayed(const Duration(milliseconds: 250));
+        await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+    } catch (e) {
+      debugPrint('[AdService] ATT request failed (non-fatal): $e');
+    }
+  }
+
+  Duration _backoffFor(int failCount) {
+    // 30 s, 60 s, 120 s, 240 s, capped at _maxBackoff
+    final seconds = 30 * (1 << (failCount.clamp(0, 4)));
+    final candidate = Duration(seconds: seconds);
+    return candidate > _maxBackoff ? _maxBackoff : candidate;
   }
 
   // ─── Rewarded Ad (for 2x boost) ───
 
   void loadRewardedAd() {
+    if (!_initialized) return;
     RewardedAd.load(
       adUnitId: _rewardedAdUnitId,
       request: const AdRequest(),
@@ -44,11 +178,19 @@ class AdService {
         onAdLoaded: (ad) {
           _rewardedAd = ad;
           _isRewardedAdReady = true;
+          _rewardedFailCount = 0;
         },
         onAdFailedToLoad: (error) {
           _isRewardedAdReady = false;
-          // Retry after 30 seconds
-          Future.delayed(const Duration(seconds: 30), loadRewardedAd);
+          _rewardedFailCount++;
+          final wait = _backoffFor(_rewardedFailCount - 1);
+          debugPrint(
+            '[AdService] rewarded load failed '
+            '(code=${error.code} domain=${error.domain} '
+            'msg=${error.message}) — retry in ${wait.inSeconds}s '
+            '[attempt=$_rewardedFailCount]',
+          );
+          Future.delayed(wait, loadRewardedAd);
         },
       ),
     );
@@ -63,9 +205,13 @@ class AdService {
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _isRewardedAdReady = false;
-        loadRewardedAd(); // preload next one
+        loadRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint(
+          '[AdService] rewarded show failed '
+          '(code=${error.code} msg=${error.message})',
+        );
         ad.dispose();
         _isRewardedAdReady = false;
         loadRewardedAd();
@@ -85,6 +231,7 @@ class AdService {
   // ─── Interstitial Ad (every 5th question) ───
 
   void loadInterstitialAd() {
+    if (!_initialized) return;
     InterstitialAd.load(
       adUnitId: _interstitialAdUnitId,
       request: const AdRequest(),
@@ -92,10 +239,19 @@ class AdService {
         onAdLoaded: (ad) {
           _interstitialAd = ad;
           _isInterstitialReady = true;
+          _interstitialFailCount = 0;
         },
         onAdFailedToLoad: (error) {
           _isInterstitialReady = false;
-          Future.delayed(const Duration(seconds: 30), loadInterstitialAd);
+          _interstitialFailCount++;
+          final wait = _backoffFor(_interstitialFailCount - 1);
+          debugPrint(
+            '[AdService] interstitial load failed '
+            '(code=${error.code} domain=${error.domain} '
+            'msg=${error.message}) — retry in ${wait.inSeconds}s '
+            '[attempt=$_interstitialFailCount]',
+          );
+          Future.delayed(wait, loadInterstitialAd);
         },
       ),
     );
@@ -115,6 +271,10 @@ class AdService {
         onDismissed?.call();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint(
+          '[AdService] interstitial show failed '
+          '(code=${error.code} msg=${error.message})',
+        );
         ad.dispose();
         _isInterstitialReady = false;
         loadInterstitialAd();
@@ -126,6 +286,17 @@ class AdService {
   }
 
   // ─── Banner Ad ───
+  //
+  // Caller owns the returned BannerAd and MUST call dispose() in the
+  // widget's State.dispose() — otherwise the underlying native ad view
+  // leaks across rebuilds. Pattern:
+  //
+  //   late final BannerAd _ad;
+  //   @override void initState() {
+  //     super.initState();
+  //     _ad = AdService().createBannerAd()..load();
+  //   }
+  //   @override void dispose() { _ad.dispose(); super.dispose(); }
 
   BannerAd createBannerAd() {
     return BannerAd(
@@ -134,6 +305,11 @@ class AdService {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdFailedToLoad: (ad, error) {
+          debugPrint(
+            '[AdService] banner load failed '
+            '(code=${error.code} domain=${error.domain} '
+            'msg=${error.message})',
+          );
           ad.dispose();
         },
       ),

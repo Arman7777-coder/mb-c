@@ -21,6 +21,9 @@ dependencies:
   # declaring the umbrella plugin makes Flutter generate the missing
   # podspec so CocoaPods can resolve it.
   webview_flutter: ^4.10.0
+  # ATT prompt (iOS 14.5+). GMA 5.x does not auto-trigger; without an
+  # explicit request iOS serves SKAdNetwork-only ads with reduced eCPM.
+  app_tracking_transparency: ^2.0.6
 
 dev_dependencies:
   flutter_test:

@@ -5,8 +5,10 @@ import '../utils/constants.dart';
 class ApiService {
   final String baseUrl = AppConstants.apiBaseUrl;
   String? _deviceId;
+  String? _adminPassword;
 
   void setDeviceId(String deviceId) => _deviceId = deviceId;
+  void setAdminPassword(String password) => _adminPassword = password;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -15,7 +17,7 @@ class ApiService {
 
   Map<String, String> get _adminHeaders => {
         ..._headers,
-        'X-Admin-Password': AppConstants.adminPassword,
+        if (_adminPassword != null) 'X-Admin-Password': _adminPassword!,
       };
 
   // Wall-clock cap so an unreachable / slow BE doesn't hang the UI

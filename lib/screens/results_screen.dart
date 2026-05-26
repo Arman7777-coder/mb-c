@@ -71,31 +71,30 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> with SingleTicker
       return;
     }
 
-    await adService.showRewardedAd(
-      onRewarded: () async {
-        try {
-          final api = ref.read(apiServiceProvider);
-          final result = await api.applyAdReward(widget.completionId);
-          if (mounted) {
-            setState(() {
-              _adApplied = true;
-              _displayReward = result['new_total'];
-              _applyingAd = false;
-            });
-            _confettiController.play();
-            ref.read(userProvider.notifier).refresh();
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() => _applyingAd = false);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-          }
-        }
-      },
-    );
+    final rewarded = await adService.showRewardedAd(onRewarded: () {});
 
-    if (!_adApplied && mounted) {
-      setState(() => _applyingAd = false);
+    if (!rewarded || !mounted) {
+      if (mounted) setState(() => _applyingAd = false);
+      return;
+    }
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      final result = await api.applyAdReward(widget.completionId);
+      if (mounted) {
+        setState(() {
+          _adApplied = true;
+          _displayReward = result['new_total'];
+          _applyingAd = false;
+        });
+        _confettiController.play();
+        ref.read(userProvider.notifier).refresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _applyingAd = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
     }
   }
 

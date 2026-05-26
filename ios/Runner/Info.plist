@@ -72,14 +72,10 @@
 	     with your production AdMob app ID before App Store release. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
-	<!-- Dev-only: allow plain http:// to local backends. iOS otherwise
-	     silently blocks non-TLS requests, which surfaces as a hang +
-	     no error. REMOVE before App Store submission and migrate the
-	     dev backend to https://. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	<!-- ATT prompt copy; required only if you call
 	     ATTrackingManager.requestTrackingAuthorization. GMA 5.x does not

@@ -64,8 +64,8 @@ class _SurveyScreenState extends ConsumerState<SurveyScreen> {
     }
   }
 
-  void _showAdThenAdvance(int nextIndex) {
-    AdService().showInterstitialAd(
+  Future<void> _showAdThenAdvance(int nextIndex) async {
+    await AdService().showInterstitialAd(
       onDismissed: () {
         if (mounted) {
           setState(() {

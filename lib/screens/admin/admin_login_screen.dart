@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/constants.dart';
+import '../../providers/user_provider.dart';
 
-class AdminLoginScreen extends StatefulWidget {
+class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
 
   @override
-  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
+  ConsumerState<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
-class _AdminLoginScreenState extends State<AdminLoginScreen> {
+class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   final _controller = TextEditingController();
   bool _error = false;
+  bool _loading = false;
 
-  void _login() {
-    if (_controller.text == AppConstants.adminPassword) {
-      Navigator.pushReplacementNamed(context, '/admin/dashboard');
-    } else {
-      setState(() => _error = true);
+  Future<void> _login() async {
+    if (_controller.text.isEmpty) return;
+    setState(() { _error = false; _loading = true; });
+    try {
+      final api = ref.read(apiServiceProvider);
+      api.setAdminPassword(_controller.text);
+      await api.getAdminDashboard();
+      if (mounted) Navigator.pushReplacementNamed(context, '/admin/dashboard');
+    } catch (_) {
+      if (mounted) setState(() { _error = true; _loading = false; });
     }
   }
 
@@ -50,7 +57,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             SizedBox(
               width: double.infinity,
               height: 48,
-              child: ElevatedButton(onPressed: _login, child: const Text('Login')),
+              child: ElevatedButton(
+                onPressed: _loading ? null : _login,
+                child: _loading
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Login'),
+              ),
             ),
           ],
         ),

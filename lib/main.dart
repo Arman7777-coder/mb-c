@@ -16,6 +16,7 @@ import 'screens/transactions_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'services/ad_service.dart';
+import 'widgets/adaptive_banner.dart';
 
 final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
@@ -103,14 +104,20 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_rounded), label: 'Wallet'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'History'),
-          BottomNavigationBarItem(icon: Icon(Icons.star_rounded), label: 'Premium'),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdaptiveBanner(),
+          BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (i) => setState(() => _currentIndex = i),
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_rounded), label: 'Wallet'),
+              BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'History'),
+              BottomNavigationBarItem(icon: Icon(Icons.star_rounded), label: 'Premium'),
+            ],
+          ),
         ],
       ),
     );

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // AdMob configuration.
@@ -289,21 +289,37 @@ class AdService {
   //
   // Caller owns the returned BannerAd and MUST call dispose() in the
   // widget's State.dispose() — otherwise the underlying native ad view
-  // leaks across rebuilds. Pattern:
-  //
-  //   late final BannerAd _ad;
-  //   @override void initState() {
-  //     super.initState();
-  //     _ad = AdService().createBannerAd()..load();
-  //   }
-  //   @override void dispose() { _ad.dispose(); super.dispose(); }
+  // leaks across rebuilds. Prefer createAdaptiveBannerAd() — Anchored
+  // Adaptive has higher fill rate and eCPM than the fixed 320×50 banner.
 
-  BannerAd createBannerAd() {
+  // Anchored Adaptive Banner. Picks an optimal height for the given
+  // screen width (Google's recommendation; replaces the deprecated
+  // smart banner). Returns null on platforms where the SDK can't
+  // resolve a size (rare — usually means the screen width is 0 during
+  // a transient layout pass; caller should retry on the next frame).
+  //
+  // The caller passes `onLoaded` so the host widget can flip to its
+  // loaded state. BannerAd.listener is final, so it must be supplied
+  // at construction — we can't compose after the fact.
+  Future<BannerAd?> createAdaptiveBannerAd(
+    BuildContext context, {
+    required void Function(Ad ad) onLoaded,
+  }) async {
+    final width = MediaQuery.of(context).size.width.truncate();
+    final size = await AdSize.getAnchoredAdaptiveBannerAdSize(
+      Orientation.portrait,
+      width,
+    );
+    if (size == null) {
+      debugPrint('[AdService] adaptive banner size unavailable (width=$width)');
+      return null;
+    }
     return BannerAd(
       adUnitId: _bannerAdUnitId,
-      size: AdSize.banner,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
+        onAdLoaded: onLoaded,
         onAdFailedToLoad: (ad, error) {
           debugPrint(
             '[AdService] banner load failed '

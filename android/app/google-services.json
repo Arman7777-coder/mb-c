@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935194074709",
+    "project_id": "pcm-59971",
+    "storage_bucket": "pcm-59971.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935194074709:android:28b120c168f2a2e00efedc",
+        "android_client_info": {
+          "package_name": "com.surveyrewards.survey_rewards"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_Y0DzGUemTwGAoxSqDk52vEDin4tLGpc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

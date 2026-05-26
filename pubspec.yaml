@@ -24,6 +24,8 @@ dependencies:
   # ATT prompt (iOS 14.5+). GMA 5.x does not auto-trigger; without an
   # explicit request iOS serves SKAdNetwork-only ads with reduced eCPM.
   app_tracking_transparency: ^2.0.6
+  firebase_core: ^3.12.1
+  firebase_analytics: ^11.4.4
 
 dev_dependencies:
   flutter_test:

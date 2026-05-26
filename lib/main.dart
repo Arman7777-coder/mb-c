@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'theme/app_theme.dart';
 import 'providers/user_provider.dart';
 import 'screens/splash_screen.dart';
@@ -15,12 +17,11 @@ import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'services/ad_service.dart';
 
-void main() {
+final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Fire-and-forget AdMob init. The first ad-request screen handles a
-  // not-yet-ready service via the existing isRewardedAdReady / isInterstitialReady
-  // checks, so we don't block UI on this. ATT prompt is shown inside
-  // initialize() before MobileAds.initialize() — required by Apple.
+  await Firebase.initializeApp();
   unawaited(AdService().initialize());
   runApp(const ProviderScope(child: SurveyRewardsApp()));
 }
@@ -45,6 +46,7 @@ class _SurveyRewardsAppState extends ConsumerState<SurveyRewardsApp> {
       title: 'Survey Rewards',
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [FirebaseAnalyticsObserver(analytics: analytics)],
       initialRoute: '/splash',
       routes: {
         '/splash': (_) => const SplashScreen(),

@@ -26,6 +26,11 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Export compliance: app uses only standard HTTPS (exempt) encryption,
+	     no custom/proprietary crypto. Declaring false here skips the
+	     export-compliance prompt on every TestFlight/App Store upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

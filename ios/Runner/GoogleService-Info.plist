@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.surveyrewards.surveyRewards</string>
+	<string>com.surveyrewards.opinionRewards</string>
 	<key>PROJECT_ID</key>
 	<string>pcm-59971</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:935194074709:ios:65b5b054a29261ae0efedc</string>
+	<string>1:935194074709:ios:648d25a6f9c793a60efedc</string>
 </dict>
 </plist>

@@ -1,7 +1,7 @@
 name: survey_rewards
 description: "Survey Rewards - Share your opinion, earn rewards"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+4
 
 environment:
   sdk: ^3.11.4

@@ -8,4 +8,10 @@ class AppConstants {
   static const double premiumMultiplier = 1.5;
   static const String appName = 'Survey Rewards';
   static const String appTagline = 'Share your opinion. Earn rewards.';
+
+  // Subscription paywall legal links. Apple/Google require functional
+  // Terms (EULA) + Privacy Policy links on the paywall. TODO: confirm
+  // these resolve to the real published pages before App Review.
+  static const String termsUrl = 'https://admin.harsaniq.top/terms';
+  static const String privacyUrl = 'https://admin.harsaniq.top/privacy';
 }

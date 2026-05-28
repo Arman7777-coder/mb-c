@@ -158,6 +158,37 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // Server-side receipt validation. The app forwards the store receipt;
+  // the backend verifies it with Apple/Google (using the app-specific
+  // shared secret / Play service account), grants premium, and returns
+  // the updated user JSON (same shape as register). Anything other than
+  // 200 means "not unlocked" — the caller must NOT complete the store
+  // transaction so it stays pending for retry.
+  Future<Map<String, dynamic>> verifyPremiumPurchase({
+    required String platform,
+    required String productId,
+    required String receipt,
+  }) async {
+    if (_deviceId == null || _deviceId!.isEmpty) {
+      throw StateError('Device not registered yet — call register() first.');
+    }
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/api/premium/verify'),
+          headers: _headers,
+          body: jsonEncode({
+            'platform': platform,
+            'product_id': productId,
+            'receipt': receipt,
+          }),
+        )
+        .timeout(_httpTimeout);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('premium verify failed: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body);
+  }
+
   Future<Map<String, dynamic>> getPremiumStatus() async {
     final res = await http.get(
       Uri.parse('$baseUrl/api/premium/status'),

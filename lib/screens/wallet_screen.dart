@@ -232,6 +232,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
+  static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  bool _isValidDetail(String method, String detail) {
+    if (method == 'crypto') {
+      // Conservative length floor — BTC/ETH/USDT addresses are all ≥ 26
+      // chars; rejects obvious typos without hard-coding per-chain formats.
+      return detail.length >= 26;
+    }
+    return _emailRegex.hasMatch(detail);
+  }
+
   void _showRedeemDialog(String method, String title, int balance) {
     final amountController = TextEditingController(text: '5000');
     final detailController = TextEditingController();
@@ -284,17 +295,32 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               child: ElevatedButton(
                 onPressed: () async {
                   final amount = int.tryParse(amountController.text) ?? 0;
-                  if (amount < 5000) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum is 5,000 points')));
+                  final detail = detailController.text.trim();
+                  final messenger = ScaffoldMessenger.of(context);
+                  void fail(String msg) =>
+                      messenger.showSnackBar(SnackBar(content: Text(msg)));
+
+                  if (amount < AppConstants.minimumRedemption) {
+                    fail('Minimum is ${NumberFormat('#,###').format(AppConstants.minimumRedemption)} points');
+                    return;
+                  }
+                  if (amount > balance) {
+                    fail('You only have ${NumberFormat('#,###').format(balance)} points');
+                    return;
+                  }
+                  if (!_isValidDetail(method, detail)) {
+                    fail(method == 'crypto'
+                        ? 'Enter a valid wallet address'
+                        : 'Enter a valid email address');
                     return;
                   }
                   Navigator.pop(ctx);
                   try {
                     final api = ref.read(apiServiceProvider);
                     await api.requestRedemption(amount, method, {
-                      if (method == 'paypal') 'email': detailController.text,
-                      if (method == 'crypto') 'wallet_address': detailController.text,
-                      if (method == 'amazon_gift_card') 'email': detailController.text,
+                      if (method == 'paypal') 'email': detail,
+                      if (method == 'crypto') 'wallet_address': detail,
+                      if (method == 'amazon_gift_card') 'email': detail,
                     });
                     ref.invalidate(redemptionsProvider);
                     ref.invalidate(walletProvider);

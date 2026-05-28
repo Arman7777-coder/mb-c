@@ -16,6 +16,7 @@ import 'screens/transactions_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'services/ad_service.dart';
+import 'providers/iap_provider.dart';
 import 'widgets/adaptive_banner.dart';
 
 final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
@@ -39,6 +40,10 @@ class _SurveyRewardsAppState extends ConsumerState<SurveyRewardsApp> {
   void initState() {
     super.initState();
     ref.read(userProvider.notifier).initialize();
+    // Start the IAP listener early so transactions left pending from a
+    // previous session (e.g. a purchase whose backend verification didn't
+    // finish) are re-delivered and retried.
+    ref.read(iapServiceProvider);
   }
 
   @override

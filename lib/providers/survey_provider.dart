@@ -3,6 +3,7 @@ import '../models/survey.dart';
 import 'user_provider.dart';
 
 final surveysProvider = FutureProvider<List<SurveyListItem>>((ref) async {
+  await awaitRegisteredUser(ref);
   final api = ref.read(apiServiceProvider);
   final data = await api.getSurveys();
   return data.map((s) => SurveyListItem.fromJson(s)).toList();

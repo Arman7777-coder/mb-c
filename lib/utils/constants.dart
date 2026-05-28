@@ -10,8 +10,11 @@ class AppConstants {
   static const String appTagline = 'Share your opinion. Earn rewards.';
 
   // Subscription paywall legal links. Apple/Google require functional
-  // Terms (EULA) + Privacy Policy links on the paywall. TODO: confirm
-  // these resolve to the real published pages before App Review.
-  static const String termsUrl = 'https://admin.harsaniq.top/terms';
-  static const String privacyUrl = 'https://admin.harsaniq.top/privacy';
+  // Terms (EULA) + Privacy Policy links on the paywall. Both are Google
+  // Docs in /preview (read-only) form — the docs must be shared publicly
+  // ("Anyone with the link → Viewer") or App Review hits a sign-in wall.
+  static const String termsUrl =
+      'https://docs.google.com/document/d/1Bm7h3o_nCpox0RHWYNIybpk120QXik3P94bqW6ccUMY/preview';
+  static const String privacyUrl =
+      'https://docs.google.com/document/d/1PPM_JIpwi1JmgIbWQ-b3j46Rovm_00ITtecpN15w5x4/preview';
 }

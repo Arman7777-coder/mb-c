@@ -26,6 +26,16 @@ class ApiService {
   // error + Retry instead of a perpetual spinner.
   static const _httpTimeout = Duration(seconds: 12);
 
+  // Validates the status before decoding. Calls that skip this can decode
+  // an error body (e.g. a 422 {"detail":[...]} object) into the wrong type
+  // and surface a confusing cast error far downstream in a provider.
+  dynamic _decodeOrThrow(http.Response res, String op) {
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('$op failed: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body);
+  }
+
   Future<Map<String, dynamic>> register(String deviceId) async {
     final res = await http
         .post(
@@ -61,19 +71,17 @@ class ApiService {
   }
 
   Future<List<dynamic>> getSurveys() async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/surveys'),
-      headers: _headers,
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/surveys'), headers: _headers)
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getSurveys') as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> getSurveyDetail(String surveyId) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/surveys/$surveyId'),
-      headers: _headers,
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/surveys/$surveyId'), headers: _headers)
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getSurveyDetail') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> completeSurvey(
@@ -97,18 +105,17 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getWallet() async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/wallet'),
-      headers: _headers,
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/wallet'), headers: _headers)
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getWallet') as Map<String, dynamic>;
   }
 
   Future<List<dynamic>> getTransactions({int limit = 50, int offset = 0, String? type}) async {
     var url = '$baseUrl/api/wallet/transactions?limit=$limit&offset=$offset';
     if (type != null) url += '&type=$type';
-    final res = await http.get(Uri.parse(url), headers: _headers);
-    return jsonDecode(res.body);
+    final res = await http.get(Uri.parse(url), headers: _headers).timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getTransactions') as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> requestRedemption(
@@ -133,29 +140,32 @@ class ApiService {
   }
 
   Future<List<dynamic>> getRedemptions() async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/wallet/redemptions'),
-      headers: _headers,
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/wallet/redemptions'), headers: _headers)
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getRedemptions') as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> applyAdReward(String completionId) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/ads/reward'),
-      headers: _headers,
-      body: jsonEncode({'completion_id': completionId}),
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/api/ads/reward'),
+          headers: _headers,
+          body: jsonEncode({'completion_id': completionId}),
+        )
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'applyAdReward') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> activatePremium(String plan) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/premium/activate'),
-      headers: _headers,
-      body: jsonEncode({'plan': plan}),
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/api/premium/activate'),
+          headers: _headers,
+          body: jsonEncode({'plan': plan}),
+        )
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'activatePremium') as Map<String, dynamic>;
   }
 
   // Server-side receipt validation. The app forwards the store receipt;
@@ -190,11 +200,10 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getPremiumStatus() async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/premium/status'),
-      headers: _headers,
-    );
-    return jsonDecode(res.body);
+    final res = await http
+        .get(Uri.parse('$baseUrl/api/premium/status'), headers: _headers)
+        .timeout(_httpTimeout);
+    return _decodeOrThrow(res, 'getPremiumStatus') as Map<String, dynamic>;
   }
 
   // Admin endpoints

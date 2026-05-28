@@ -41,6 +41,10 @@ flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
   adaptive_icon_background: "#6C63FF"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  # App Store rejects iOS icons with an alpha channel. Flatten onto the
+  # brand background so the generated iOS icons are fully opaque.
+  remove_alpha_ios: true
+  background_color_ios: "#6C63FF"
 
 flutter:
   uses-material-design: true

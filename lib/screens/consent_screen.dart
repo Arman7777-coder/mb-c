@@ -26,7 +26,22 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
       _error = null;
     });
     try {
-      await ref.read(userProvider.notifier).updateConsent(true, true);
+      // Ensure the device is registered before sending consent. If the
+      // initial registration in main() failed (transient network, slow
+      // backend), retry it here so Get Started is a true retry — not a
+      // dead button that always shows the same "couldn't reach server"
+      // error. This is what trapped App Review on iPad.
+      final notifier = ref.read(userProvider.notifier);
+      final pre = ref.read(userProvider);
+      if (pre.hasError || pre.value == null) {
+        await notifier.initialize();
+      }
+      final ready = ref.read(userProvider);
+      if (ready.value == null) {
+        throw ready.error ?? StateError('Registration failed');
+      }
+
+      await notifier.updateConsent(true, true);
       if (!mounted) return;
       // Read the post-call state. The notifier writes errors there;
       // navigating to /home on a failed consent call would leave the
@@ -55,83 +70,95 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          // Scrollable content above + sticky button below. Earlier this
+          // was a fixed Column with a Spacer, which on shorter screens
+          // (iPad landscape, smaller iPads) pushed "Get Started" below
+          // the safe area — App Review on iPad couldn't reach it.
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-              const Icon(Icons.verified_user_rounded, size: 48, color: AppColors.primary),
-              const SizedBox(height: 16),
-              const Text(
-                'Before we begin',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Please review and accept the following to continue.',
-                style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 32),
-              _buildCheckItem(
-                'I am 13 years of age or older',
-                _ageConfirmed,
-                (v) => setState(() => _ageConfirmed = v!),
-              ),
-              _buildCheckItem(
-                'I agree to the Terms of Service',
-                _tosAccepted,
-                (v) => setState(() => _tosAccepted = v!),
-                hasLink: true,
-              ),
-              _buildCheckItem(
-                'I agree to the Privacy Policy',
-                _privacyAccepted,
-                (v) => setState(() => _privacyAccepted = v!),
-                hasLink: true,
-              ),
-              _buildCheckItem(
-                'I consent to anonymous data collection for surveys and analytics',
-                _dataConsent,
-                (v) => setState(() => _dataConsent = v!),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.premiumLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: AppColors.premium, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Points earned are app balance, not guaranteed cash. Redemptions are subject to review and availability.',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.error_outline, size: 18, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(_error!, style: const TextStyle(fontSize: 12, color: Colors.red))),
+                      const SizedBox(height: 20),
+                      const Icon(Icons.verified_user_rounded, size: 48, color: AppColors.primary),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Before we begin',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Please review and accept the following to continue.',
+                        style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 32),
+                      _buildCheckItem(
+                        'I am 13 years of age or older',
+                        _ageConfirmed,
+                        (v) => setState(() => _ageConfirmed = v!),
+                      ),
+                      _buildCheckItem(
+                        'I agree to the Terms of Service',
+                        _tosAccepted,
+                        (v) => setState(() => _tosAccepted = v!),
+                        hasLink: true,
+                      ),
+                      _buildCheckItem(
+                        'I agree to the Privacy Policy',
+                        _privacyAccepted,
+                        (v) => setState(() => _privacyAccepted = v!),
+                        hasLink: true,
+                      ),
+                      _buildCheckItem(
+                        'I consent to anonymous data collection for surveys and analytics',
+                        _dataConsent,
+                        (v) => setState(() => _dataConsent = v!),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.premiumLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: AppColors.premium, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Points earned are app balance, not guaranteed cash. Redemptions are subject to review and availability.',
+                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, size: 18, color: Colors.red),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(_error!, style: const TextStyle(fontSize: 12, color: Colors.red))),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
-              ],
-              const Spacer(),
+              ),
               SizedBox(
                 width: double.infinity,
                 height: 52,

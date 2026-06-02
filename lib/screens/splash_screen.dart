@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../services/device_service.dart';
 import '../services/ad_service.dart';
+import '../providers/user_provider.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   late Animation<Offset> _slideUp;
@@ -31,15 +33,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _checkNavigation() async {
     await AdService().initialize();
-    await Future.delayed(const Duration(seconds: 2));
+    // Wait until device registration finishes before leaving splash.
+    // The consent screen's "Get Started" calls /api/auth/consent with
+    // X-Device-ID, which is only set on ApiService once register()
+    // resolves. Navigating sooner (the old fixed 2 s delay) lets the
+    // user reach consent before that header exists — which is what
+    // trapped App Review on the iPad. Capped so a backend outage still
+    // lets them through to retry instead of trapping them on splash.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (mounted && DateTime.now().isBefore(deadline)) {
+      final state = ref.read(userProvider);
+      if (state.hasError) break;
+      if (state.hasValue && state.value != null) break;
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
     if (!mounted) return;
     final device = DeviceService();
     final hasConsent = await device.hasConsent();
-    if (hasConsent) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/consent');
-    }
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, hasConsent ? '/home' : '/consent');
   }
 
   @override

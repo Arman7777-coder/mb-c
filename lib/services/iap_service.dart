@@ -67,10 +67,22 @@ class IapService {
   bool get isAvailable => _available;
 
   // Cached so initialize() is idempotent and product-fetching callers
-  // (the FutureProvider) can await the same in-flight init.
+  // (the FutureProvider) can await the same in-flight init. The cache is
+  // cleared on failure so the "Retry" button on the paywall actually
+  // re-runs the query instead of returning the same stale error.
   Future<List<ProductDetails>>? _initFuture;
 
-  Future<List<ProductDetails>> initialize() => _initFuture ??= _doInitialize();
+  Future<List<ProductDetails>> initialize() {
+    final existing = _initFuture;
+    if (existing != null) return existing;
+    final future = _doInitialize();
+    _initFuture = future;
+    future.catchError((e) {
+      _initFuture = null;
+      throw e;
+    });
+    return future;
+  }
 
   Future<List<ProductDetails>> _doInitialize() async {
     _available = await _iap.isAvailable();

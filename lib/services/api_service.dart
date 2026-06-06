@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
 
@@ -26,6 +28,52 @@ class ApiService {
   // error + Retry instead of a perpetual spinner.
   static const _httpTimeout = Duration(seconds: 12);
 
+  // Onboarding (register → consent) is the make-or-break path: a failure here
+  // strands the user at "Get Started" with no way forward. On a cold network
+  // — notably App Review's IPv6/NAT64 setup, where the first TLS handshake is
+  // slow and the ad SDK + ATT prompt are competing for the radio on a fresh
+  // install — a single 12 s attempt can time out and read as a "server error".
+  // These two calls get a longer ceiling and a few automatic retries so a
+  // transient blip self-heals instead of dead-ending onboarding.
+  static const _authTimeout = Duration(seconds: 30);
+  static const _authRetries = 3;
+
+  // POST with bounded retries for the onboarding calls. Retries only on
+  // transient failures — timeouts, socket/connection errors, and 5xx — with
+  // a short backoff (1 s, 2 s). A 4xx is the caller's problem (bad request,
+  // unregistered device) and is returned immediately, not retried. register
+  // and consent are both idempotent server-side, so a retry after a response
+  // we never saw is safe.
+  Future<http.Response> _postWithRetry(
+    Uri url, {
+    required Map<String, String> headers,
+    required String body,
+  }) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < _authRetries; attempt++) {
+      if (attempt > 0) {
+        await Future.delayed(Duration(seconds: 1 << (attempt - 1)));
+      }
+      try {
+        final res = await http
+            .post(url, headers: headers, body: body)
+            .timeout(_authTimeout);
+        if (res.statusCode >= 500) {
+          lastError = Exception('${res.statusCode} ${res.body}');
+          continue;
+        }
+        return res;
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } on http.ClientException catch (e) {
+        lastError = e;
+      } on SocketException catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError ?? Exception('request failed after $_authRetries attempts');
+  }
+
   // Validates the status before decoding. Calls that skip this can decode
   // an error body (e.g. a 422 {"detail":[...]} object) into the wrong type
   // and surface a confusing cast error far downstream in a provider.
@@ -37,13 +85,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> register(String deviceId) async {
-    final res = await http
-        .post(
-          Uri.parse('$baseUrl/api/auth/register'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'device_id': deviceId}),
-        )
-        .timeout(_httpTimeout);
+    final res = await _postWithRetry(
+      Uri.parse('$baseUrl/api/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'device_id': deviceId}),
+    );
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('register failed: ${res.statusCode} ${res.body}');
     }
@@ -57,13 +103,11 @@ class ApiService {
     if (_deviceId == null || _deviceId!.isEmpty) {
       throw StateError('Device not registered yet — call register() first.');
     }
-    final res = await http
-        .post(
-          Uri.parse('$baseUrl/api/auth/consent'),
-          headers: _headers,
-          body: jsonEncode({'consent_given': consent, 'age_confirmed': age}),
-        )
-        .timeout(_httpTimeout);
+    final res = await _postWithRetry(
+      Uri.parse('$baseUrl/api/auth/consent'),
+      headers: _headers,
+      body: jsonEncode({'consent_given': consent, 'age_confirmed': age}),
+    );
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception('consent failed: ${res.statusCode} ${res.body}');
     }

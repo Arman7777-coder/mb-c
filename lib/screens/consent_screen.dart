@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../utils/constants.dart';
 import '../providers/user_provider.dart';
 
 class ConsentScreen extends ConsumerStatefulWidget {
@@ -104,13 +106,15 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                         'I agree to the Terms of Service',
                         _tosAccepted,
                         (v) => setState(() => _tosAccepted = v!),
-                        hasLink: true,
+                        linkLabel: 'Terms of Service',
+                        linkUrl: AppConstants.termsUrl,
                       ),
                       _buildCheckItem(
                         'I agree to the Privacy Policy',
                         _privacyAccepted,
                         (v) => setState(() => _privacyAccepted = v!),
-                        hasLink: true,
+                        linkLabel: 'Privacy Policy',
+                        linkUrl: AppConstants.privacyUrl,
                       ),
                       _buildCheckItem(
                         'I consent to anonymous data collection for surveys and analytics',
@@ -177,7 +181,28 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     );
   }
 
-  Widget _buildCheckItem(String text, bool value, ValueChanged<bool?> onChanged, {bool hasLink = false}) {
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open $url')),
+        );
+      }
+    }
+  }
+
+  // When [linkUrl] is set the row shows a "View" button that opens the
+  // document — App Review requires the user be able to read the Terms /
+  // Privacy Policy *before* agreeing. The button has its own tap target so
+  // tapping it opens the doc instead of toggling the checkbox.
+  Widget _buildCheckItem(
+    String text,
+    bool value,
+    ValueChanged<bool?> onChanged, {
+    String? linkLabel,
+    String? linkUrl,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
@@ -201,6 +226,23 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
               Expanded(
                 child: Text(text, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
               ),
+              if (linkUrl != null)
+                TextButton(
+                  onPressed: () => _openUrl(linkUrl),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: AppColors.primary,
+                  ),
+                  child: Semantics(
+                    label: 'View $linkLabel',
+                    child: const Text(
+                      'View',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

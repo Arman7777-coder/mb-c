@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../providers/user_provider.dart';
 import '../providers/survey_provider.dart';
 import '../models/survey.dart';
+import '../widgets/premium_upsell.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -185,39 +186,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.timer, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Next survey available in', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                Text(
-                  '${hours}h ${minutes}m ${seconds}s',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
+                child: const Icon(Icons.timer, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Next survey available in', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    Text(
+                      '${hours}h ${minutes}m ${seconds}s',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+              if (user.isPremium && user.bonusSurveysUsedToday < 3)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: AppColors.earningsLight, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    '${3 - user.bonusSurveysUsedToday} bonus left',
+                    style: const TextStyle(color: AppColors.earnings, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
           ),
-          if (user.isPremium && user.bonusSurveysUsedToday < 3)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.earningsLight, borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                '${3 - user.bonusSurveysUsedToday} bonus left',
-                style: const TextStyle(color: AppColors.earnings, fontSize: 12, fontWeight: FontWeight.w600),
+          if (!user.isPremium) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => showPremiumUpsellDialog(
+                context,
+                title: 'Don\'t want to wait?',
+                message: 'Go Premium to skip the cooldown and earn rewards with no wait time.',
+              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.premiumLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.bolt, color: AppColors.premium, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Skip the wait with Premium',
+                        style: TextStyle(color: AppColors.premium, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: AppColors.premium, size: 20),
+                  ],
+                ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -229,7 +267,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: InkWell(
         onTap: survey.isAvailable
             ? () => Navigator.pushNamed(context, '/survey', arguments: {'surveyId': survey.id, 'title': survey.title})
-            : null,
+            : survey.isCompleted
+                ? null
+                : () => showPremiumUpsellDialog(
+                      context,
+                      title: 'Survey Locked',
+                      message: 'This survey isn\'t available yet. Go Premium to unlock it now and earn rewards with no wait time.',
+                    ),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),

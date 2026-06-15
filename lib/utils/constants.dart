@@ -1,7 +1,7 @@
 class AppConstants {
   static const String apiBaseUrl = 'https://admin.harsaniq.top';
   static const int pointsPerDollar = 1000;
-  static const int minimumRedemption = 5000;
+  static const int minimumRedemption = 500000;
   static const int cooldownHours = 8;
   static const int premiumBonusSurveysPerDay = 3;
   static const double adMultiplier = 2.0;

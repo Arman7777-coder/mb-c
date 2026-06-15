@@ -52,14 +52,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 color: AppColors.premiumLight,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: AppColors.premium, size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, color: AppColors.premium, size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Minimum redemption: 5,000 points (\$5.00). Requests are reviewed within 48 hours. Not instant withdrawals.',
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      'Minimum redemption: ${NumberFormat('#,###').format(AppConstants.minimumRedemption)} points '
+                      '(\$${(AppConstants.minimumRedemption / AppConstants.pointsPerDollar).toStringAsFixed(2)}). '
+                      'Requests are reviewed within 48 hours. Not instant withdrawals.',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                     ),
                   ),
                 ],
@@ -244,7 +246,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   void _showRedeemDialog(String method, String title, int balance) {
-    final amountController = TextEditingController(text: '5000');
+    final amountController = TextEditingController(text: '${AppConstants.minimumRedemption}');
     final detailController = TextEditingController();
     String detailLabel;
     String detailHint;

@@ -52,7 +52,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Center(child: Text('v1.0.1', style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
+              child: Center(child: Text('v1.2.0', style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
             ),
           ),
         ],

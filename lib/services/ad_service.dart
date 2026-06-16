@@ -1,57 +1,70 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 // AdMob configuration.
 //
-// All ad-unit IDs and the iOS/Android App IDs default to Google's official
-// TEST values so dev builds never hit the real publisher account (which
-// would risk invalid-traffic flags). Production builds pass real IDs via:
+// Each unit ID resolves in this priority order:
+//   1. A --dart-define override (e.g. ADMOB_REWARDED_IOS=...), if non-empty.
+//   2. In release builds (kReleaseMode): the real PRODUCTION unit IDs.
+//   3. Otherwise (debug/profile): Google's official TEST unit IDs, so dev
+//      builds never hit the real publisher account (invalid-traffic risk).
 //
-//   flutter build ios --release \
-//     --dart-define=ADMOB_REWARDED_IOS=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_INTERSTITIAL_IOS=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_BANNER_IOS=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_REWARDED_ANDROID=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_INTERSTITIAL_ANDROID=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_BANNER_ANDROID=ca-app-pub-XXXX/YYYY \
-//     --dart-define=ADMOB_TEST_DEVICE_IDS=ABCD1234,EFGH5678
+// This means a plain Xcode archive (which does NOT pass --dart-define) still
+// ships production ads, because kReleaseMode is true for an archive build.
 //
-// The App IDs in ios/Runner/Info.plist (GADApplicationIdentifier) and
-// android/app/src/main/AndroidManifest.xml (com.google.android.gms.ads.
-// APPLICATION_ID) must be swapped at release time as well — those are
-// read by the GMA SDK at process start, before any Dart code runs.
+// iOS is live (AdMob-approved). Android has no production AdMob setup yet, so
+// Android always uses TEST unit IDs — even in release — until prod Android
+// units exist.
+//
+// The native App IDs are read by the GMA SDK at process start, before any
+// Dart runs, so they CANNOT switch by build mode:
+//   - ios/Runner/Info.plist            → GADApplicationIdentifier
+//   - android/.../AndroidManifest.xml  → com.google.android.gms.ads.APPLICATION_ID
+// The iOS Info.plist must hold the real iOS App ID for production ads to serve.
 
 class _AdMobIds {
-  // iOS
-  static const rewardedIos = String.fromEnvironment(
-    'ADMOB_REWARDED_IOS',
-    defaultValue: 'ca-app-pub-3940256099942544/1712485313',
-  );
-  static const interstitialIos = String.fromEnvironment(
-    'ADMOB_INTERSTITIAL_IOS',
-    defaultValue: 'ca-app-pub-3940256099942544/4411468910',
-  );
-  static const bannerIos = String.fromEnvironment(
-    'ADMOB_BANNER_IOS',
-    defaultValue: 'ca-app-pub-3940256099942544/2934735716',
-  );
+  // ── Google official TEST unit IDs (used in debug/profile) ──
+  static const _testRewardedIos = 'ca-app-pub-3940256099942544/1712485313';
+  static const _testInterstitialIos = 'ca-app-pub-3940256099942544/4411468910';
+  static const _testBannerIos = 'ca-app-pub-3940256099942544/2934735716';
+  static const _testRewardedAndroid = 'ca-app-pub-3940256099942544/5224354917';
+  static const _testInterstitialAndroid = 'ca-app-pub-3940256099942544/1033173712';
+  static const _testBannerAndroid = 'ca-app-pub-3940256099942544/6300978111';
 
-  // Android
-  static const rewardedAndroid = String.fromEnvironment(
-    'ADMOB_REWARDED_ANDROID',
-    defaultValue: 'ca-app-pub-3940256099942544/5224354917',
-  );
-  static const interstitialAndroid = String.fromEnvironment(
-    'ADMOB_INTERSTITIAL_ANDROID',
-    defaultValue: 'ca-app-pub-3940256099942544/1033173712',
-  );
-  static const bannerAndroid = String.fromEnvironment(
-    'ADMOB_BANNER_ANDROID',
-    defaultValue: 'ca-app-pub-3940256099942544/6300978111',
-  );
+  // ── PRODUCTION unit IDs (used in release) ──
+  // iOS only — AdMob-approved live units (publisher 8330591906342449).
+  static const _prodRewardedIos = 'ca-app-pub-8330591906342449/3482560950'; // rewarded_2x_boost
+  static const _prodInterstitialIos = 'ca-app-pub-8330591906342449/1273680102'; // interstitial_survey
+  static const _prodBannerIos = 'ca-app-pub-8330591906342449/1980257117'; // banner_main
+  // Android has no production units yet — release falls back to TEST below.
+
+  // ── --dart-define overrides (highest priority; empty string = unset) ──
+  static const _ovRewardedIos = String.fromEnvironment('ADMOB_REWARDED_IOS');
+  static const _ovInterstitialIos = String.fromEnvironment('ADMOB_INTERSTITIAL_IOS');
+  static const _ovBannerIos = String.fromEnvironment('ADMOB_BANNER_IOS');
+  static const _ovRewardedAndroid = String.fromEnvironment('ADMOB_REWARDED_ANDROID');
+  static const _ovInterstitialAndroid = String.fromEnvironment('ADMOB_INTERSTITIAL_ANDROID');
+  static const _ovBannerAndroid = String.fromEnvironment('ADMOB_BANNER_ANDROID');
+
+  // override wins; else prod in release, test otherwise.
+  static String _pick(String override, String prod, String test) {
+    if (override.isNotEmpty) return override;
+    return kReleaseMode ? prod : test;
+  }
+
+  // iOS — production in release, test in debug/profile.
+  static String get rewardedIos => _pick(_ovRewardedIos, _prodRewardedIos, _testRewardedIos);
+  static String get interstitialIos => _pick(_ovInterstitialIos, _prodInterstitialIos, _testInterstitialIos);
+  static String get bannerIos => _pick(_ovBannerIos, _prodBannerIos, _testBannerIos);
+
+  // Android — no prod units yet, so prod == test (always test unless overridden).
+  static String get rewardedAndroid => _pick(_ovRewardedAndroid, _testRewardedAndroid, _testRewardedAndroid);
+  static String get interstitialAndroid => _pick(_ovInterstitialAndroid, _testInterstitialAndroid, _testInterstitialAndroid);
+  static String get bannerAndroid => _pick(_ovBannerAndroid, _testBannerAndroid, _testBannerAndroid);
 
   // Comma-separated list of test device IDs. Required when running a
   // build with PRODUCTION ad-unit IDs against a real device — without

@@ -73,10 +73,11 @@
 	</array>
 	<!-- Google Mobile Ads requires this key on init. Without it, GMA
 	     raises an NSException at app launch and terminates the process.
-	     The value below is Google's official iOS TEST app ID — replace
-	     with your production AdMob app ID before App Store release. -->
+	     This is the production iOS AdMob app ID (publisher 8330591906342449).
+	     Unit IDs are selected by build mode in lib/services/ad_service.dart —
+	     debug serves Google TEST ads, release serves production. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-8330591906342449~4986991572</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

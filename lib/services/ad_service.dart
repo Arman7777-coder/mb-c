@@ -37,9 +37,9 @@ class _AdMobIds {
 
   // ── PRODUCTION unit IDs (used in release) ──
   // iOS only — AdMob-approved live units (publisher 8330591906342449).
-  static const _prodRewardedIos = 'ca-app-pub-8330591906342449/3482560950'; // rewarded_2x_boost
-  static const _prodInterstitialIos = 'ca-app-pub-8330591906342449/1273680102'; // interstitial_survey
-  static const _prodBannerIos = 'ca-app-pub-8330591906342449/1980257117'; // banner_main
+  static const _prodRewardedIos = 'ca-app-pub-8330591906342449/6005648486'; // rewarded_2x_boost
+  static const _prodInterstitialIos = 'ca-app-pub-8330591906342449/3515216511'; // interstitial_survey
+  static const _prodBannerIos = 'ca-app-pub-8330591906342449/5131550514'; // banner_main
   // Android has no production units yet — release falls back to TEST below.
 
   // ── --dart-define overrides (highest priority; empty string = unset) ──
